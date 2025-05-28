@@ -1,3 +1,4 @@
+
 // 5 Channel IR Sensor Connection
 #define ir1 A0
 #define ir2 A1
@@ -25,8 +26,8 @@ float PID_value = 0;
 int baseSpeed = 100;
 int leftMotorSpeed = 0, rightMotorSpeed = 0;
 
-int TURN_DELAY_LEFT = 1100;   // milliseconds
-int TURN_DELAY_RIGHT = 1100;
+int TURN_DELAY_LEFT = 1000;   // milliseconds
+int TURN_DELAY_RIGHT = 1000;
 
 void setup() {
   Serial.begin(9600);
@@ -88,7 +89,7 @@ void executeForwardCommand() {
         (s1 == 0 && s2 == 0 && s3 == 1) || 
         (s1 == 0 && s2 == 0 && s3 == 0 && s4 == 0 && s5 == 0)) {
       junctionDetected = true;
-      delay(500);
+      delay(250);
       stopMotors();
       return;
     }
@@ -134,11 +135,27 @@ void setMotorSpeeds(int leftSpeed, int rightSpeed) {
 }
 
 void turnLeft() {
+  // Step 1: Initiate the turn to leave the line
   digitalWrite(M1_DIR, HIGH);
   digitalWrite(M2_DIR, HIGH);
   analogWrite(M1_PWM, 180);
   analogWrite(M2_PWM, 0);
-  delay(TURN_DELAY_LEFT);
+  
+  // Step 2: Wait until the center sensor leaves the line (s3 == 1)
+  while (digitalRead(ir3) == 0);  // Wait to leave the line
+
+  // Step 3: Now re-align using s3 feedback
+  while (digitalRead(ir3) == 1) {
+    int s3 = digitalRead(ir3);
+    float error = 1.0; // s3 still hasn't hit line
+    float slowDown = Kp * error;
+
+    int rightSpeed = constrain(180 - slowDown, 80, 180);
+    analogWrite(M1_PWM, rightSpeed);
+    analogWrite(M2_PWM, 0);
+    delay(10);
+  }
+
   stopMotors();
 }
 
@@ -147,7 +164,20 @@ void turnRight() {
   digitalWrite(M2_DIR, HIGH);
   analogWrite(M1_PWM, 0);
   analogWrite(M2_PWM, 180);
-  delay(TURN_DELAY_RIGHT);
+
+  while (digitalRead(ir3) == 0);  // Wait to leave the line
+
+  while (digitalRead(ir3) == 1) {
+    int s3 = digitalRead(ir3);
+    float error = 1.0;
+    float slowDown = Kp * error;
+
+    int leftSpeed = constrain(180 - slowDown, 80, 180);
+    analogWrite(M1_PWM, 0);
+    analogWrite(M2_PWM, leftSpeed);
+    delay(10);
+  }
+
   stopMotors();
 }
 
