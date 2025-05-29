@@ -31,7 +31,7 @@ def turn_commands(current_dir, target_dir):
     elif diff == 1:
         return ['R'], target_dir
     elif diff == 2:
-        return ['R', 'R'], target_dir
+        return ['U'], target_dir
     elif diff == 3:
         return ['L'], target_dir
 
@@ -51,6 +51,9 @@ def simulate_movement(start_x, start_y, start_dir, commands):
                 current_x -= 1
         elif cmd in ['L', 'R']:
             current_dir = update_direction(current_dir, cmd)
+        elif cmd == 'U':  # Add U-turn handling
+            current_dir = update_direction(current_dir, 'R')
+            current_dir = update_direction(current_dir, 'R')
     return current_x, current_y, current_dir
 
 
@@ -70,8 +73,10 @@ def simulate_coordinates(start_x, start_y, start_dir, commands):
             coords.append((current_x, current_y))
         elif cmd in ['L', 'R']:
             current_dir = update_direction(current_dir, cmd)
+        elif cmd == 'U':  # Add U-turn handling
+            current_dir = update_direction(current_dir, 'R')
+            current_dir = update_direction(current_dir, 'R')
     return coords
-
 
 def plan_path(curr_x, curr_y, curr_dir, tgt_x, tgt_y, forbidden_coords=[]):
     def generate_path(x_first=True):
@@ -205,6 +210,10 @@ def execute_commands(commands, current_x, current_y, current_dir):
                 current_x -= 1
         elif command in ['L', 'R']:
             current_dir = update_direction(current_dir, command)
+        elif command == 'U':  # THIS IS THE CRITICAL FIX
+            # U-turn = 180 degrees = two right turns
+            current_dir = update_direction(current_dir, 'R')
+            current_dir = update_direction(current_dir, 'R')
 
         # Wait for Arduino confirmation
         while True:
@@ -217,7 +226,6 @@ def execute_commands(commands, current_x, current_y, current_dir):
                     print(f"Arduino says: {response}")
 
     return current_x, current_y, current_dir
-
 
 def main():
     print("Enter initial coordinates (x y):")
@@ -265,5 +273,5 @@ def main():
     print("\nAll deliveries completed!")
 
 
-if "_name_" == "_main_":
+if __name__ == "__main__":
     main()
