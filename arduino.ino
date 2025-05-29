@@ -1,4 +1,3 @@
-
 // 5 Channel IR Sensor Connection
 #define ir1 A0
 #define ir2 A1
@@ -13,9 +12,9 @@
 #define M2_DIR 7   // Motor 2 Direction
 
 // PID Constants
-float Kp = 6;
-float Ki = 0.01;
-float Kd = 3;
+float Kp = 20;
+float Ki = 0.005;
+float Kd = 1.5;
 
 // PID Variables
 float error = 0, lastError = 0;
@@ -61,6 +60,9 @@ void loop() {
     } else if (command == "R") {
       turnRight();
       Serial.println("DONE");
+    } else if (command == "U") {
+      turnUTurn();
+      Serial.println("DONE");
     } else if (command == "S") {
       stopMotors();
       Serial.println("DONE");
@@ -89,7 +91,7 @@ void executeForwardCommand() {
         (s1 == 0 && s2 == 0 && s3 == 1) || 
         (s1 == 0 && s2 == 0 && s3 == 0 && s4 == 0 && s5 == 0)) {
       junctionDetected = true;
-      delay(250);
+      delay(100);
       stopMotors();
       return;
     }
@@ -138,19 +140,19 @@ void turnLeft() {
   // Step 1: Initiate the turn to leave the line
   digitalWrite(M1_DIR, HIGH);
   digitalWrite(M2_DIR, HIGH);
-  analogWrite(M1_PWM, 180);
+  analogWrite(M1_PWM, 150);
   analogWrite(M2_PWM, 0);
   
   // Step 2: Wait until the center sensor leaves the line (s3 == 1)
   while (digitalRead(ir3) == 0);  // Wait to leave the line
-
+  delay(400);
   // Step 3: Now re-align using s3 feedback
   while (digitalRead(ir3) == 1) {
     int s3 = digitalRead(ir3);
     float error = 1.0; // s3 still hasn't hit line
     float slowDown = Kp * error;
 
-    int rightSpeed = constrain(180 - slowDown, 80, 180);
+    int rightSpeed = constrain(150 - slowDown, 80, 150);
     analogWrite(M1_PWM, rightSpeed);
     analogWrite(M2_PWM, 0);
     delay(10);
@@ -163,18 +165,47 @@ void turnRight() {
   digitalWrite(M1_DIR, HIGH);
   digitalWrite(M2_DIR, HIGH);
   analogWrite(M1_PWM, 0);
-  analogWrite(M2_PWM, 180);
+  analogWrite(M2_PWM, 150);
 
   while (digitalRead(ir3) == 0);  // Wait to leave the line
-
+  delay(400);
   while (digitalRead(ir3) == 1) {
     int s3 = digitalRead(ir3);
     float error = 1.0;
     float slowDown = Kp * error;
 
-    int leftSpeed = constrain(180 - slowDown, 80, 180);
+    int leftSpeed = constrain(150 - slowDown, 80, 150);
     analogWrite(M1_PWM, 0);
     analogWrite(M2_PWM, leftSpeed);
+    delay(10);
+  }
+
+  stopMotors();
+}
+
+void turnUTurn() {
+  // Step 1: Initiate the U-turn to leave the line
+  // M1 HIGH, M2 LOW for U-turn (spinning in place or tight turn)
+  digitalWrite(M1_DIR, HIGH);
+  digitalWrite(M2_DIR, LOW);  // Reverse direction for M2
+  analogWrite(M1_PWM, 150);
+  analogWrite(M2_PWM, 150);   // Same PWM for both motors
+  
+  // Step 2: Wait until the center sensor leaves the line (s3 == 1)
+  while (digitalRead(ir3) == 0);  // Wait to leave the line
+  delay(1000);  // Longer delay for U-turn to complete more rotation
+  
+  // Step 3: Continue turning until we find the line again using PID control
+  while (digitalRead(ir3) == 1) {
+    int s3 = digitalRead(ir3);
+    float error = 1.0; // s3 still hasn't hit line
+    float slowDown = Kp * error;
+
+    int motorSpeed = constrain(150 - slowDown, 80, 150);
+    digitalWrite(M1_DIR, HIGH);
+    digitalWrite(M2_DIR, LOW);
+    analogWrite(M1_PWM, motorSpeed);
+    analogWrite(M2_PWM, motorSpeed);
     delay(10);
   }
 
